@@ -1,0 +1,66 @@
+name: Check GitHub Usernames
+
+on:
+  workflow_dispatch:
+    inputs:
+      batch_size:
+        description: 'How many usernames to check per run'
+        required: false
+        default: '500'
+      max_workers:
+        description: 'Parallel checking threads'
+        required: false
+        default: '20'
+  schedule:
+    - cron: '0 */6 * * *'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install "requests[socks]"
+
+      - name: Restore results cache
+        uses: actions/cache@v4
+        with:
+          path: results.json
+          key: github-results-${{ github.run_id }}
+          restore-keys: |
+            github-results-
+
+      - name: Fetch live proxies
+        env:
+          PROXIES_FILE: proxies.txt
+        run: python fetch_proxies.py
+
+      - name: Generate username batch
+        env:
+          RESULTS_FILE: results.json
+          USERNAMES_FILE: usernames.txt
+          BATCH_SIZE: ${{ github.event.inputs.batch_size || '500' }}
+        run: python generate_usernames.py
+
+      - name: Check username availability
+        env:
+          USERNAMES_FILE: usernames.txt
+          PROXIES_FILE: proxies.txt
+          RESULTS_FILE: results.json
+          MAX_WORKERS: ${{ github.event.inputs.max_workers || '20' }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python check_usernames.py
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-username-results-${{ github.run_number }}
+          path: results.json
