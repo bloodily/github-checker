@@ -23,7 +23,7 @@ def load_checked() -> set[str]:
 
 def is_valid(username: str) -> bool:
     """GitHub username rules: 1-39 chars, letters/digits/hyphens, no leading/trailing or consecutive hyphens."""
-    if not (1 <= len(username) <= 4):
+    if not (3 <= len(username) <= 4):
         return False
     if username.startswith("-") or username.endswith("-"):
         return False
